@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+case-slide-designer/assets/icons.json
+case-slide-designer/assets/icon-tags.json
+case-slide-designer/assets/us-states-albers.json
