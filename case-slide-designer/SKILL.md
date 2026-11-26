@@ -20,9 +20,8 @@ Output is always editable PowerPoint: real text boxes, real shapes and charts, n
 - `scripts/deck_native.py`: deck-native mode. Run `scan deck.pptx` to list colours, fonts, layouts and each slide's tracker, with the active label marked * (add `--labels "Pillar A,Pillar B"` when the tracker uses pillar names; pass the same list as `HostSlide(..., tracker_labels=[...])`). The `HostSlide` class builds a slide in the host master: titles, an exact tracker copy, the slide-number field, `copy_shape(from_slide, name)` for any other named shape of a sibling slide, primitives in the deck's style, and a one-slide export.
 - `scripts/us_map.py`: an editable US map, with every state as a freeform you can recolour. It returns region centres for pins.
 - `scripts/build_deck.py`: JSON spec -> .pptx using the house layouts (house-style mode). `--style "<game plan Style line>"` uses its PRIMARY, PRIMARY_DARK, OUTLINE, MID and NEUTRAL hex codes exactly.
-- `scripts/extract_deck.py`: dumps a deck to JSON plus embedded images (logos).
-- `scripts/render.py`: .pptx -> one PNG per slide (`--sheet` writes `_extra/sheet.png`).
-- `scripts/check_deck.py`: mechanical QA (overflow, text below the floors in text boxes, groups and table cells, off-slide shapes, fonts; the word count is printed as a note only) with the same size floors and slide detection as the auditor's `audit_pptx.py`: main slides 16pt (word guide 40, 60 on a slide carrying "We recommend"), appendix 14pt, Sources slide and footer band 10pt, title and footer band not counted. Pass `--fonts "Head,Body"` or `--fonts safe` (Aptos) when not using Avenir Next LT Pro, or every run gets flagged.
+- `scripts/check_deck.py`: mechanical QA (overflow, text below the floors in text boxes, groups and table cells, off-slide shapes, fonts; the word count is printed as a note only) with the same size floors and slide detection as the auditor's `audit_pptx.py`: main slides 16pt (word guide 40, 60 on a slide carrying "We recommend"), appendix 14pt, Sources slide and footer band 10pt, title and footer band not counted. Pass `--fonts "Head,Body"` or `--fonts safe` (Aptos) when not using Avenir Next LT Pro, or every run gets flagged. It ends by running `slop_check.py` (pass `--primary HEX`, and `--accent none|HEX` from the Style line).
+- `scripts/slop_check.py`: the slide slop detector, fixed rules with no AI judgement (idea from Impeccable's web-UI detector, rewritten for .pptx). Flags low contrast, gradients, 3-D, effects, emoji, an extra accent hue, rows of equal cards on most slides, the same layout twice in a row, a banner that repeats the title, more than 3 bullets or a paragraph in a box, slop words (seamless, unlock, elevate...), sparkle icons, pie charts, chart gridlines, rainbow bars, pills in the title zone, arrows on every line. Each finding has a priority P0-P3 and the design move that fixes it (rules: `references/design-rules.md` "Slop rules"). Standalone: `python scripts/slop_check.py deck.pptx --primary HEX [--accent none|HEX] [--json out.json]`.
 - `scripts/icons.py`: search the 1,544 bundled line icons (`python scripts/icons.py growth money`).
 - `scripts/core.py`, `layouts.py`, `theme.py`: the house toolkit (`core.Deck` primitives). The frame and grid in `core.py` are case-study-ppt section 5; the five COBE palette roles in `theme.py` come from case-study-ppt's `scripts/palette.py` (same formulas as a fallback).
 - `references/layouts.md`: spec keys and limits for the 13 house layouts.
@@ -30,6 +29,7 @@ Output is always editable PowerPoint: real text boxes, real shapes and charts, n
 - `references/deck-patterns.md`: slide patterns from real COBE decks (logic chain, exec-summary rail, input -> engine -> output, hub and spoke, gantt with gates, KPI wheel, map + tiles) plus the course's patterns (decision tree, customer journey, device mock-up, build sequence, use case, financial waterfall, hard and soft KPIs). Read it when choosing a structure.
 - `assets/us-states-albers.json`: the map data (us-atlas, ISC licence: `assets/US-ATLAS-LICENSE.txt`).
 - `assets/icons.json`, `assets/icon-tags.json`: the Lucide icon library and its search tags (`assets/ICONS-LICENSE.txt` must ship with them).
+- Reading and rendering a deck use the pptx skill (`<pptx-dir>` = its folder): `<pptx-dir>/scripts/slide_text.py deck.pptx` (text, tables, chart data and notes per slide), `unzip -j deck.pptx 'ppt/media/*' -d media` (logos and images), `<pptx-dir>/scripts/office/soffice.py --headless --convert-to pdf deck.pptx` then `pdftoppm -r 80 -png deck.pdf slide` (one PNG per slide), `<pptx-dir>/scripts/thumbnail.py deck.pptx <name>` (contact sheet).
 - `assets/example-spec.json`: a full house-style spec using every layout; copy it as a starting point (its `section` slide is for non-COBE decks).
 
 Setup: if `import cairosvg` fails (icons), run `pip install --break-system-packages cairosvg` first.
@@ -40,7 +40,7 @@ Setup: if `import cairosvg` fails (icons), run `pip install --break-system-packa
    - If the user says "ask before making" or the slide could take several very different shapes, offer 2-3 layout options with ASCII previews in one AskUserQuestion round. Batch in the other open decisions: what the numbering means, which tracker phase, appendix or main deck. Otherwise build straight away.
    - In house-style mode, also settle the accent colour, the logo (take it from the deck's media, never redraw it) and the fonts.
 2. **Read the input.**
-   - Run `extract_deck.py` and `render.py` on the deck, then look at the target slide *and* 3-4 sibling slides to learn the deck's look.
+   - Read the deck's text and render it (pptx skill commands in "Files"), then look at the target slide *and* 3-4 sibling slides to learn the deck's look.
    - In deck-native mode, also run `deck_native.py scan deck.pptx`.
    - Never edit the user's file. Always write a new one.
 3. **Check the content before designing.**
@@ -51,7 +51,7 @@ Setup: if `import cairosvg` fails (icons), run `pip install --break-system-packa
 4. **Plan the story.** Decide the structure (see "Choosing a structure"), where each fact goes, and what to cut. Show the plan only when you restructured something.
 5. **Build.** In deck-native mode use the recipe below. In house-style mode write the spec (`references/layouts.md`) and run `build_deck.py spec.json out.pptx --primary HEX --logo logo.png`.
 6. **Look at it.** Render, open the PNG and inspect it as a viewer would: wrapped single words, labels touching edges, inconsistent sizes between sibling boxes, icons that do not read, empty zones. Expect 2-4 passes.
-7. **Run `check_deck.py`** with the right `--fonts` and clear everything it reports. Word-count lines are notes: judge the rendered slide and cut only when it looks crowded.
+7. **Run `check_deck.py`** with the right `--fonts` and `--primary` and clear everything it reports. Word-count lines are notes: judge the rendered slide and cut only when it looks crowded. Its slop-check block: clear every P0 and P1; look at each P2 and P3 on the render and fix it unless the slide is better as it is (say why in the delivery note).
 8. **Deliver** the .pptx with SendUserFile and a short note covering:
    - what the slide became
    - what you cut or reworded
