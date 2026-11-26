@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Mechanical QA for a built deck. Run before delivering; fix everything it reports.
 
-    python check_deck.py deck.pptx [--min-body 16] [--max-words 40]
+    python check_deck.py deck.pptx [--fonts premium|safe|"Head,Body"] [--primary HEX] [--accent none|HEX] [--no-slop]
 
 Checks: shapes outside the slide, text below the size floor (text boxes, groups and table cells), estimated text
 overflow, fonts outside the house pair, empty placeholders, speaker notes, pictures without alt text.
+Then runs the slide slop detector (slop_check.py, P0-P3): P0 findings count as issues; clear P1 too before
+delivering; judge P2-P3 on the rendered slide. Pass --primary (and --accent) from the Style line.
 The word count per slide is printed as a note only: a guide for a clean look, never a problem to clear.
 Same limits as case-study-ppt sections 3 and 4a and the auditor's audit_pptx.py (whose title, appendix and
 Sources detection is reused when case-study-auditor is installed next to this skill):
@@ -97,11 +99,14 @@ except Exception:  # auditor not installed: verbatim copy of its detection (audi
 
 
 
-APPX_MIN, SOURCE_MIN, ANSWER_MAX_WORDS = 14, 10, 60
+BODY_MIN_PT, MAX_WORDS, APPX_MIN, SOURCE_MIN, ANSWER_MAX_WORDS = 16, 40, 14, 10, 60
 
 ap = argparse.ArgumentParser()
-ap.add_argument("pptx"); ap.add_argument("--min-body", type=float, default=16); ap.add_argument("--max-words", type=int, default=40)
+ap.add_argument("pptx")
 ap.add_argument("--fonts", default="premium", help="premium | safe | 'Head Font,Body Font'")
+ap.add_argument("--primary", default=None, help="Style line PRIMARY hex, for the slop check's colour rule")
+ap.add_argument("--accent", default=None, help="Style line ACCENT: 'none' or a hex")
+ap.add_argument("--no-slop", action="store_true", help="skip the slop check")
 a = ap.parse_args()
 prs = Presentation(a.pptx)
 W, H = prs.slide_width, prs.slide_height
@@ -143,7 +148,7 @@ for n, s in enumerate(prs.slides, 1):
     is_sources = bool(SOURCES_TITLE.match(title))
     if APPENDIX_TITLE.match(title) or is_sources or (n > 1 and has_appendix_footer(s, H)):
         appendix = True
-    body_floor = SOURCE_MIN if is_sources else (min(APPX_MIN, a.min_body) if appendix else a.min_body)
+    body_floor = SOURCE_MIN if is_sources else (APPX_MIN if appendix else BODY_MIN_PT)
     slide_text = " ".join(sh.text_frame.text for sh in s.shapes if sh.has_text_frame).lower()
     for sh in s.shapes:
         nm = sh.name
@@ -191,10 +196,17 @@ for n, s in enumerate(prs.slides, 1):
             say(n, f"'{nm}' (table or group): {len(small_inner)} text(s) below {body_floor:g}pt, smallest {sz:g}pt: '{txt[:40]}'")
         if sh.is_placeholder and sh.has_text_frame and not sh.text_frame.text.strip():
             say(n, f"empty placeholder '{nm}'")
-    limit = None if (appendix or n == 1) else (max(ANSWER_MAX_WORDS, a.max_words) if "we recommend" in slide_text else a.max_words)
+    limit = None if (appendix or n == 1) else (ANSWER_MAX_WORDS if "we recommend" in slide_text else MAX_WORDS)
     if limit is not None and words > limit:
         print(f"slide {n}: note - {words} words (guide {limit}); judge the rendered slide, this is not a rule")
     if s.has_notes_slide and s.notes_slide.notes_text_frame.text.strip():
         print(f"slide {n}: note - has speaker notes")
+if not a.no_slop:
+    from slop_check import scan as slop_scan, report as slop_report
+    findings = slop_scan(prs, a.accent, a.primary)
+    print(slop_report(findings))
+    for f in findings:
+        if f["p"] == 0:
+            problems += 1
 print("OK: nothing to fix" if not problems else f"\n{problems} issue(s)")
 sys.exit(1 if problems else 0)
