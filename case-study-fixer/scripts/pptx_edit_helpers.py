@@ -196,16 +196,6 @@ def remove_notes(prs):
     return cleaned
 
 
-def replace_in_notes(slide, old, new):
-    """Replace text inside the slide's speaker notes (run-level). Raises if not found."""
-    tf = slide.notes_slide.notes_text_frame
-    for p in tf.paragraphs:
-        for r in p.runs:
-            if old in r.text:
-                r.text = r.text.replace(old, new); return
-    raise ValueError(f"notes: '{old[:40]}' not found")
-
-
 def disable_shrink(prs):
     """Turn shrink-to-fit off everywhere so font sizes stay as set."""
     for s in prs.slides:
