@@ -60,7 +60,7 @@ Be honest, not harsh for its own sake: don't mark coursework down for lacking co
 - Next steps concrete on the last slide.
 
 ## 5. Design and readability (15)
-Default standard = the case-study-ppt house style. Read the installed case-study-ppt SKILL.md for the current values; the list below is a fallback summary:
+Score = the average of the six design-critique checks (SKILL.md section 2a: hierarchy, focus, consistency, legibility, breathing room, data clarity), with findings ranked P0-P3. Default standard = the case-study-ppt house style. Read the installed case-study-ppt SKILL.md for the current values; the list below is a fallback summary:
 - Title slide first; tracker (Analysis, Strategy, Recommendation, Feasibility; pillar names; or Analysis, Strategy, Implementation, Impact) on main-body slides; appendix footer on backups.
 - Main slides look clean and read at a glance (about 40 body words, 60 on the executive summary and closing slide, is a guide and not a rule: judge the rendered slide and never deduct for the count alone), text ≥ 16pt (chart and tracker labels 14pt; appendix ≥ 14pt; sources ≥ 10pt), titles on one line, no shrink-to-fit.
 - One visual element per slide; no plain bullet slides; no pattern repeated on neighbouring slides or one template for every pillar; no half-empty tall boxes, no overflow, aligned elements, consistent spacing.
@@ -79,5 +79,5 @@ Default standard = the case-study-ppt house style. Read the installed case-study
 
 ## Severity
 - **Critical**: would cost a grade band or invite a killer question (no clear answer, wrong core number, missing brief item, strategy that violates the company's values, dead/invented source for a key number, a slide that shows another option ahead of the recommendation, a headline claim the deck's own model contradicts).
-- **Major**: clearly costs points (weak root cause, untied numbers, cluttered slides, missing risks or KPIs, small text).
-- **Minor**: polish (alignment, wording, inconsistent format).
+- **Major**: clearly costs points (weak root cause, untied numbers, cluttered slides, missing risks or KPIs, small text, design findings P0-P1).
+- **Minor**: polish (alignment, wording, inconsistent format, design findings P2-P3).
