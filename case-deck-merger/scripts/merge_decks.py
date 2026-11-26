@@ -3,7 +3,7 @@
 
 Usage:
   python merge_decks.py --base base.pptx --order order.json --out merged.pptx
-                        [--font Arial] [--colormap colors.json] [--keep-notes]
+                        [--font Arial] [--colormap colors.json]
 
 order.json: final slide order, one entry per slide, e.g.
   [{"deck": "anna.pptx", "slide": 1, "owner": "Anna"},
@@ -15,9 +15,8 @@ What it does: starts from the base deck's masters/layouts/theme (the style that 
 each listed slide's shapes with their images, charts (+ data), tables and hyperlinks, scales
 slides from a different slide size to fit, gives member slides the base background, optionally
 unifies fonts and colours, and renumbers plain slide-number boxes.
-Speaker notes: house rule is no notes inside the deck, so member notes are NOT copied into the
-.pptx; they go to <out stem>_member_notes.md (merged slide # -> owner -> notes text). They are
-copied in only with --keep-notes or when the base deck itself has notes.
+Speaker notes: house rule is no notes inside the deck, so no notes are copied into the .pptx;
+they go to <out stem>_member_notes.md (merged slide # -> owner -> notes text).
 Refuses to overwrite any input file (base or any deck in order.json).
 Prints warnings for anything it could not carry over (SmartArt, video, OLE objects).
 """
@@ -33,7 +32,6 @@ import sys
 from pptx import Presentation
 from pptx.opc.constants import RELATIONSHIP_TYPE as RT
 from pptx.opc.package import Part
-from pptx.opc.packuri import PackURI
 from pptx.oxml.ns import qn
 from pptx.parts.chart import ChartPart
 from pptx.parts.embeddedpackage import EmbeddedXlsxPart
@@ -138,7 +136,7 @@ def notes_text(slide):
     return "\n".join(sh.text_frame.text for sh in slide.notes_slide.shapes if sh.has_text_frame).strip()
 
 
-def copy_slide(src_prs, src_slide, dst, warn, label, bg=None, keep_notes=False):
+def copy_slide(src_prs, src_slide, dst, warn, label, bg=None):
     layout, same_layout = pick_layout(dst, src_slide.slide_layout.name)
     new = dst.slides.add_slide(layout)
     tree = new.shapes._spTree
@@ -189,18 +187,6 @@ def copy_slide(src_prs, src_slide, dst, warn, label, bg=None, keep_notes=False):
             cSld.remove(old)
         cSld.insert(0, copy.deepcopy(use_bg))
 
-    if keep_notes and src_slide.has_notes_slide:
-        stf = src_slide.notes_slide.notes_text_frame
-        txt = stf.text if stf is not None else ""
-        if txt.strip():
-            ntf = new.notes_slide.notes_text_frame
-            if ntf is not None:
-                ntf.text = txt
-            else:  # base notes master has no body placeholder: carry the source notes shapes over
-                ntree = new.notes_slide.shapes._spTree
-                for el in src_slide.notes_slide.shapes._spTree:
-                    if el.tag == qn("p:sp"):
-                        ntree.insert_element_before(copy.deepcopy(el), "p:extLst")
     return new
 
 
@@ -229,13 +215,18 @@ def unify(dst, font, colormap):
                     e.set("val", colormap[v])
 
 
+def is_slide_number(shp, h):
+    """A plain-number text box in the bottom strip (also used by restyle_like_base.py)."""
+    return bool(shp.has_text_frame and shp.top is not None and shp.top > h - 0.9 * EMU_IN
+                and re.fullmatch(r"\d{1,3}", shp.text_frame.text.strip()))
+
+
 def renumber(dst):
-    """Plain-number text boxes in the bottom strip are slide numbers: set them to the new position."""
+    """Slide-number boxes get the new slide position."""
     h = dst.slide_height
     for i, slide in enumerate(dst.slides, start=1):
         for shp in slide.shapes:
-            if (shp.has_text_frame and shp.top is not None and shp.top > h - 0.9 * EMU_IN
-                    and re.fullmatch(r"\d{1,3}", shp.text_frame.text.strip())):
+            if is_slide_number(shp, h):
                 runs = [r for p in shp.text_frame.paragraphs for r in p.runs]
                 if runs:
                     runs[0].text = str(i)
@@ -250,8 +241,6 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--font")
     ap.add_argument("--colormap")
-    ap.add_argument("--keep-notes", action="store_true",
-                    help="copy member speaker notes into the .pptx (default: never; house rule is no notes in the deck, they go to the _member_notes.md sidecar)")
     a = ap.parse_args()
 
     order = json.load(open(a.order))
@@ -264,7 +253,6 @@ def main():
     warn = warnings.append
 
     base_prs = Presentation(a.base)
-    keep_notes = a.keep_notes  # house rule: no notes in the deck; they go to the sidecar file
     dst = Presentation(a.base)
     base_bg = common_bg(base_prs)
     clear_slides(dst)
@@ -282,8 +270,7 @@ def main():
             sys.exit(f"order entry {i}: {path} has no slide {n}")
         label = f"merged slide {i} ({path} #{n})"
         is_base = os.path.realpath(path) == base_real
-        copy_slide(src, src.slides[n - 1], dst, warn, label, bg=None if is_base else base_bg,
-                   keep_notes=keep_notes)
+        copy_slide(src, src.slides[n - 1], dst, warn, label, bg=None if is_base else base_bg)
         txt = notes_text(src.slides[n - 1])
         if txt:
             sidecar.append((i, item.get("owner", ""), path, n, txt))
@@ -300,7 +287,7 @@ def main():
             f.write(f"# Member speaker notes (from the source decks, not in {os.path.basename(a.out)})\n\n")
             for i, owner, path, n, txt in sidecar:
                 f.write(f"## Merged slide {i} | {owner or '-'} | {os.path.basename(path)} #{n}\n\n{txt}\n\n")
-        print(f"speaker notes {'copied into the deck AND ' if keep_notes else ''}written to {side} "
+        print(f"speaker notes written to {side} "
               f"({len(sidecar)} slides) -> fold them into COBE_<Case>_SpeakerNotes.docx")
     print("\nOrigin (merged # | owner | source deck | source #):")
     for i, owner, path, n in origin:

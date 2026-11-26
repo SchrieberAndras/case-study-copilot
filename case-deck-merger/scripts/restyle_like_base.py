@@ -23,27 +23,20 @@ import collections
 import copy
 import io
 import os
-import re
 import sys
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.oxml.ns import qn
 from pptx.util import Pt
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path[:0] = [HERE, os.path.join(HERE, "..", "..", "case-study-auditor", "scripts"),
+                os.path.join(HERE, "..", "..", "case-study-ppt", "scripts")]
+from audit_pptx import find_title as title_shape  # same title detection as the auditor
+from merge_decks import is_slide_number
+from palette import roles
+
 EMU_IN = 914400
-
-
-def title_shape(slide):
-    if slide.shapes.title is not None and slide.shapes.title.text_frame.text.strip():
-        return slide.shapes.title
-    best = None
-    for sh in slide.shapes:
-        if sh.has_text_frame and sh.text_frame.text.strip() and sh.top is not None and sh.top / EMU_IN < 1.6:
-            sizes = [r.font.size.pt for p in sh.text_frame.paragraphs for r in p.runs if r.font.size]
-            m = max(sizes) if sizes else (30 if sh.is_placeholder else 0)
-            if m >= 20 and (best is None or m > best[0]):
-                best = (m, sh)
-    return best[1] if best else None
 
 
 def first_run(sh):
@@ -51,11 +44,6 @@ def first_run(sh):
         for r in p.runs:
             return p, r
     return None, None
-
-
-def is_slide_number(sh, h):
-    return (sh.has_text_frame and sh.top is not None and sh.top > h - 0.9 * EMU_IN
-            and re.fullmatch(r"\d{1,3}", sh.text_frame.text.strip() or "x"))
 
 
 def is_decor(sh, title):
@@ -88,21 +76,8 @@ def primary_color(prs):
 
 
 def neutral_from(prim):
-    """case-study-ppt NEUTRAL: very light grey tinted toward PRIMARY (L ~85-88%).
-    Taken from case-study-ppt's scripts/palette.py when that skill is installed next to this one."""
-    import colorsys
-    try:
-        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "case-study-ppt", "scripts"))
-        from palette import roles
-        return roles(prim)[0]["NEUTRAL"]
-    except Exception:
-        pass
-    r, g, b = (int(prim[i:i + 2], 16) / 255 for i in (0, 2, 4))
-    h, _, s = colorsys.rgb_to_hls(r, g, b)
-    # keep PRIMARY's hue, fix lightness at 86.5% (spec: 85-88%), cap saturation so it stays a grey tint.
-    # The old 12% tint toward 0xDE gave L = 79-83% for most brand colours (too dark).
-    nr, ng, nb = colorsys.hls_to_rgb(h, 0.865, min(s, 0.22))
-    return f"{round(nr * 255):02X}{round(ng * 255):02X}{round(nb * 255):02X}"
+    """case-study-ppt NEUTRAL role for PRIMARY."""
+    return roles(prim)[0]["NEUTRAL"]
 
 
 def restyle(path, ref_n, targets, table_ref, out, highlight=1, primary=None, neutral=None):

@@ -12,25 +12,21 @@ import argparse
 import collections
 import difflib
 import json
+import os
 import re
+import sys
 from pptx import Presentation
 from pptx.oxml.ns import qn
 
 EMU_IN = 914400
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "case-study-auditor", "scripts"))
+from audit_pptx import find_title  # same title detection as the auditor
 NUM = re.compile(r"[$€£]?\d[\d,.]*\s?(?:%|[KMB]\b|bn\b|million\b|t\b|kg\b)?")
 
 
 def title_of(slide):
-    if slide.shapes.title is not None and slide.shapes.title.text_frame.text.strip():
-        return slide.shapes.title.text_frame.text.strip().replace("\n", " ")
-    best = None
-    for sh in slide.shapes:
-        if sh.has_text_frame and sh.text_frame.text.strip() and sh.top is not None and sh.top / EMU_IN < 1.6:
-            sizes = [r.font.size.pt for p in sh.text_frame.paragraphs for r in p.runs if r.font.size]
-            m = max(sizes) if sizes else 0
-            if m >= 20 and (best is None or m > best[0]):
-                best = (m, sh.text_frame.text.strip().replace("\n", " "))
-    return best[1] if best else ""
+    t = find_title(slide)
+    return t.text_frame.text.strip().replace("\n", " ") if t is not None else ""
 
 
 def slide_text(slide):
