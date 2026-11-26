@@ -41,11 +41,23 @@ In a deck, do not repeat the same layout back to back; alternate card slides wit
 - Logos stretched or recreated; use the supplied file at its native aspect ratio.
 - Changing the user's numbers while "tidying".
 
+## Slop rules (checked by `scripts/slop_check.py`)
+A deck reads as AI-made or template work when several of these stack up; one alone is often fine. The script flags them with a priority, and each line names the design move that fixes it (case-study-fixer `references/fix-playbook.md`, "Design moves"). The house style always wins: the accent bar, icon badges, the kicker, the phase tracker and check / cross marks are never slop.
+
+| Priority | Meaning | Rules |
+|---|---|---|
+| P0 | unreadable, fix before submitting | text contrast under 2:1 (1.5:1 for large text) |
+| P1 | clearly against the house style | contrast under 4:1 for body text (2.5:1 large), gradient fills or backgrounds, 3-D shapes or charts, emoji, a colour family outside the palette roles and the ACCENT on two or more slides |
+| P2 | reads as AI slop or template work | borderline contrast (4.0-4.5:1), shadows / glows / soft edges, rows of equal cards on 60%+ of main slides, the same card layout twice in a row, a banner that repeats the title, more than 3 bullets or a 30+ word paragraph in a box, slop words (quiet, seamless, unlock, elevate, leverage, synergy, game-changer, next-level, cutting-edge, revolutionary, delve, effortless, "real impact"), sparkle / star / magic-wand icons, pie charts, chart gridlines, rainbow bars |
+| P3 | polish | the same icon-topped card row on 3+ main slides, two chart slides of the same layout in a row, a one-series legend, pill labels in the title zone, coloured left edges on cards, 3+ dots between words, arrows starting or ending most lines, 3+ two-word sentences in titles, a near-full-slide image after the title slide, an extra colour on a single slide |
+
+Contrast targets: 4.5:1 for body text, 3:1 for large text (24pt+, or 18pt+ bold), measured against the box actually behind the text.
+
 ## Restyle checklist (before delivering)
 1. Every slide has an action title that passes "So what?"; titles tell the story read alone in order; Analysis slides end in a conclusion bar.
 2. Every number matches the input; formats are consistent; units are labelled once.
 3. No orphaned words, no text touching box edges, nothing outside the margins.
 4. One highlight per chart; legend only when needed.
 5. Icons recognisable; same stroke and size within a row.
-6. `check_deck.py` (16pt floor; word counts are notes, not problems) reports OK; all PNGs inspected.
+6. `check_deck.py` (16pt floor; word counts are notes, not problems) reports OK, its slop block has no P0 or P1 left, and each P2/P3 was looked at on the render; all PNGs inspected.
 7. Delivery note lists cuts, reorderings, flagged inconsistencies, and the font reminder.
