@@ -209,7 +209,8 @@ def audit(path, minutes=None, main_slides=None, case_title=None, part=False):
                 top = (shp.top or 0) / EMU_IN
                 # footer = source line, tracker, slide number: the bottom band, or a line starting "Source:"
                 # (case-study-ppt section 5 puts the source line at y 6.70, above the tracker)
-                is_footer = (not in_table) and (top > slide_h - FOOTER_ZONE_IN or SOURCE_LINE.match(tf.text))
+                is_footer = (not in_table) and (top > slide_h - FOOTER_ZONE_IN or SOURCE_LINE.match(tf.text)
+                                                or (shp.name or "").startswith(("source", "page-number")))
                 for p in tf.paragraphs:
                     psize = p.font.size.pt if p.font.size is not None else None
                     for r in p.runs:
@@ -338,7 +339,7 @@ def audit(path, minutes=None, main_slides=None, case_title=None, part=False):
 
 
 def read_lines(path):
-    """Lines of text from .docx / .pdf / .md / .txt (for notes, Q&A, game plan files)."""
+    """Lines of text from .docx / .pdf / .md / .txt (notes, Q&A, game plan files; overlap_check.py reuses it)."""
     p = path.lower()
     if p.endswith(".docx"):
         import docx
