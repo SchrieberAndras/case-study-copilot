@@ -1,11 +1,11 @@
 ---
 name: "case-study-auditor"
-description: "Audit and grade a business-school case deck like the COBE professor: score /100, every issue with an exact fix, READY / NOT READY TO SUBMIT, and a live jury Q&A drill on request. Use whenever the user asks to check, review, grade, rate or proofread case slides before submitting, wants to know what the professor will criticise, or says 'grill me' or 'practice the Q&A'. Never edits the deck and never starts the fixer without the user's yes."
+description: "Audit and grade a business-school case deck like the COBE professor: score /100, every issue with an exact fix, READY / NOT READY TO SUBMIT, and a live jury Q&A drill on request. Use whenever the user asks to check, review, grade, rate or proofread case slides before submitting, wants to know what the professor will criticise, or says 'grill me' or 'practice the Q&A'. Also use for a design-only critique of a deck or named slides ('critique slide 5', 'does this look AI-made', 'design review'). Never edits the deck and never starts the fixer without the user's yes."
 ---
 
 # Case study auditor
 
-Grades a case deliverable the way a coursework professor would, against the course's case-solving standard (Executive summary, Analysis, Strategy, Recommendation, Feasibility), finds every problem, and tells the user exactly how to fix each one. Its value is finding what costs points **before** the professor does, so be honest: a flattering audit is worthless. The user wants direct feedback ("You're wrong", honest ratings out of 10), short bullet points, no emojis.
+Grades a case deliverable the way a coursework professor would, against the course's case-solving standard (Executive summary, Analysis, Strategy, Recommendation, Feasibility), finds every problem, and tells the user exactly how to fix each one. Its value is finding what costs points **before** the professor does, so be honest: a flattering audit is worthless.
 
 **This skill never edits the deck.** It recommends every fix with the exact change. When the user gives a command ("fix it", "fix the criticals", "apply 1, 4 and 7"), hand over to the `case-study-fixer` skill with the audit file; keeping auditing and fixing separate keeps the grade honest.
 
@@ -47,10 +47,12 @@ For .pptx:
 python <skill-dir>/scripts/audit_pptx.py deck.pptx [--minutes <N> | --main-slides <N from the brief>] [--case-title "<case title>"] [--extra notes.docx qa.docx gameplan.md] --json audit.json
 python <skill-dir>/scripts/overlap_check.py deck.pptx case.pdf [other_source.pdf ...]
 python <skill-dir>/scripts/overlap_check.py notes.docx case.pdf     # likewise for the Q&A file
+python <designer-dir>/scripts/slop_check.py deck.pptx --primary <PRIMARY> --accent <ACCENT | none> --json slop.json
 ```
 - `audit_pptx.py`: finds titles even when the deck uses plain text boxes instead of title placeholders (a shape named `title`, else the largest text starting in the top inch, so a big KPI number below it is never taken for the title), splits main vs appendix (titles starting `A1`, `Appendix`, or an `Appendix` / `Backup` label in the bottom band of the slide or its layout, including the typo `Appendi`), excludes footers/source lines from word counts, and prints **submission blockers** first. A title that *is* "Sources"/"Sources used"/"References"/"Bibliography" (optionally numbered, e.g. `A9 – Sources used`), in any top text box whatever its font size, marks the Sources slide, not any title containing the word; the Sources slide always counts as appendix. Part-file appendix numbering like `A-AN1` counts as appendix. The case itself needs no URL: it is recognised by a case number (`9B24M001`, `9-321-045`, `UV1234`), by a case publisher (Ivey, Harvard Business School/Publishing, The Case Centre, Darden Business Publishing, INSEAD, Kellogg School, WDI Publishing, McGraw Hill; or a `(Case MH0084)`-style number) together with the word "case", or by `--case-title` (always pass it). The bare word "case" or a company name such as Kellogg or Darden does not exempt a source line from needing a link. Add `--part` when checking one member's part file (skips the Sources, We recommend and slide-count checks). It compares the "We recommend" sentence on the first and last main slide that carries it (appendix slides are ignored) and prints `match`, `MISMATCH` (report as Major, Critical if the recommendation itself differs) or that only one slide carries it. Per slide: word count as a note (guide 40, 60 on a slide carrying "We recommend"; information only, never a blocker or an issue by itself), text below 16/14/10pt, shrink-to-fit, speaker notes left in the file, hyperlinks, number-format problems, "We recommend" locations, main vs appendix slide count vs length (consecutive main slides with the same title are one build sequence and count once; `--minutes`: minutes ÷ 1.5 to ÷ 1.25, the same range as case-study-ppt section 0; `--main-slides` for a fixed count in the brief). Empty-cell checks skip tables whose body is 75%+ empty (layout grids or backgrounds with text boxes on top). It also flags URLs typed as plain text (not clickable) and scans `--extra` files (speaker notes, Q&A, game plan) for placeholders. Citations like `[Source: AGF 2024]` or `[1]` are not placeholders. Treat output as leads, not verdicts (fonts inherited from the master show as unknown; check them visually).
 
 For a **PDF deliverable**, run the same script on the .pdf: it switches to text-only checks (placeholders, sources without URLs, unclickable links, "We recommend"); judge fonts, word counts and layout from the rendered pages.
+- `slop_check.py` (case-slide-designer's script; `<designer-dir>` = that skill's folder): the slide slop detector, P0-P3 per finding, with the design move that fixes it. Take PRIMARY and ACCENT from the Style line (game plan section 0 or the Context block). Its findings feed the design critique (section 2a).
 - `overlap_check.py`: every passage of 7+ words identical to the case (or other sources passed in). Run it again with each speaker-notes and Q&A file as the first argument; never pass them as sources, that compares the deck with its own notes. Ignore hits on the Sources slide's own case citation line.
 
 Then render every slide and **look at each one** (scripts cannot see design):
@@ -62,7 +64,7 @@ For a PDF deliverable, render it the same way. Extract all text (`markitdown dec
 
 ## 2. Content, logic and idea review
 
-Read `references/rubric.md` and go through every category. For design and formatting standards (font minimums, the word guide, number format, sources format, slide patterns), read the whole current `case-study-ppt` SKILL.md and its `references/visuals.md` and `references/sources.md`, and use their values; the rubric's numbers are only a fallback if that skill isn't installed, so the two skills can't drift apart.
+Read `references/rubric.md` and go through every category. For design and formatting standards (font minimums, the word guide, number format, sources format, slide patterns), read the whole current `case-study-ppt` SKILL.md and its `references/visuals.md` and `references/sources.md`, and use their values over the rubric's, so the two skills can't drift apart.
 
 - **Answer**: write down the deck's "We recommend ..." sentence. If there is no clear one in the first two slides, that is Critical.
 - **Title test**: list all main-slide titles in order. Do they tell the full story alone (the McKinsey-12 test)? Apply the course's "So what?" ladder to each: flag topic titles ("Market analysis"), bare facts with no implication, instructions ("Convert X to grow") where an insight is expected, long if-then sentences, titles over one line, and titles that don't follow from the previous one. Give the rewritten insight title.
@@ -71,21 +73,48 @@ Read `references/rubric.md` and go through every category. For design and format
 - **Team introduction**: presenters named on the title slide and an opening intro line in the speaker notes; missing is Minor (a named course pitfall).
 - **Fact check against the case**: check every number on main slides against the case PDF and exhibits (right metric, year, unit, calculation). Recompute CAGRs, totals, ratios in Python. Give the correct value for each mismatch.
 - **Facts-file check** (when the facts file exists): run `python3 <gameplan-skill-dir>/scripts/facts_check.py case.pdf COBE_<Case>_CaseFacts.md` (case-study-analysis-gameplan's script) and review every hit. Then spot-check against the PDF: every exhibit used on a main slide cell by cell, every hard-constraint quote, the case question and the brief. A main-slide number that matches the facts file but not the PDF means the facts file is wrong. Each wrong or missing fact is a fix row with Where = `COBE_<Case>_CaseFacts.md`, Type Fact; Critical if the strategy or a main-slide number rests on it, else Major.
-- **Financial baseline**: check the deck (or the game plan's baseline table) has revenue, profit, cash and debt, each with year, unit and source. For a public company, compare against the statements (case exhibits first, then filings opened with WebFetch); for a private one, check that gaps are labelled assumptions. Then test affordability: does the investment on the Feasibility slide fit the cash, yearly cash flow and funding route the baseline shows? Standard in `case-study-analysis-gameplan/references/financial-planning.md` (fallback if not installed: the 3 basics are yearly revenue, yearly profit, and cash plus debt). Fix-table type: Fact (or Strategy if the plan is unaffordable).
+- **Financial baseline**: check the deck (or the game plan's baseline table) has revenue, profit, cash and debt, each with year, unit and source. For a public company, compare against the statements (case exhibits first, then filings opened with WebFetch); for a private one, check that gaps are labelled assumptions. Then test affordability: does the investment on the Feasibility slide fit the cash, yearly cash flow and funding route the baseline shows? Standard in `case-study-analysis-gameplan/references/financial-planning.md`. Fix-table type: Fact (or Strategy if the plan is unaffordable).
 - **Number ties**: same figure identical on main slides, appendix, notes and Q&A.
-- **Strategy stress test**: use `case-study-analysis-gameplan`'s `references/stress-tests.md` (single source; fallback if not installed: answers the case question, fixes the root cause, respects hard constraints, feasible, economics, competitor response, pre-mortem, second-order effects, distinctiveness, presentable as one sentence with 3-4 KPIs). Rate the idea out of 10; if weak, say plainly what would be stronger.
+- **Strategy stress test**: use `case-study-analysis-gameplan`'s `references/stress-tests.md`. Rate the idea out of 10; if weak, say plainly what would be stronger.
 - **Contradiction scan (always)**: go through every slide, main and appendix, for anything that shows another option, or a variant of the recommended one, ahead of the recommendation: a margin or price table, a scorecard, a chart, two numbers side by side. Each hit is **Critical** unless the slide carries a one-line reason that passes the four checks of stress test 20 (evidence with a reference; changes the verdict in numbers; survives your own hostile attack; fits one line). The fix row gives one of: remove it from the slides and add the Q&A entry; the exact line that defends it; or, when nothing defends it, that the strategy needs case-study-analysis-gameplan Stage 5.
 - **Partner test**: for every outside party the strategy depends on (retailer, distributor, supplier, co-brand, investor): is their gain proven with a number, their conflict addressed, the ask plausible (stress test 18)? A one-sided or unproven deal is Major, Critical if the recommendation rests on it; the fix proposes the repair (a smaller ask, another partner, another route).
 - **Kill reasons and precedents**: would each rejected option's kill reason survive a redesign of that option (test 19)? Does every cited precedent support the recommendation and not a rejected option? A dodgeable kill or a precedent for the wrong side is Major.
 - **One argument everywhere**: the same kill reason, claim and precedent on every slide, in the appendix, notes and Q&A. A slide that still carries a replaced argument is Major.
 - **Headline claims**: recompute breakeven year, payback and totals from the deck's own model; a claim the model doesn't give is Critical.
 - **Dates**: nothing in the timeline earlier than the game plan's timeline anchor.
+- **Red threads** (only when the game plan's `Threads:` line names them): the persona journey is revisited after each pillar and resolved before Feasibility; every scoreboard task is ticked on the last main slide with a number. An unticked task is Major (Critical if it is a brief item); a broken persona thread is Minor. Without a Threads line never deduct for their absence; if the case would clearly have suited one, say so in one line.
+- **Breaking point** (Feasibility): the appendix shows where the target or budget breaks on the least certain driver; missing is Minor, Major when the recommendation rests on one shaky assumption.
+- **Appendix index**: present as the first appendix slide, every link opening the right slide; missing or broken links are Minor.
 - **Brief compliance**: tick off every item the professor required (use the game plan's brief map if there is one). A missing item is Critical.
 - **Drift from the game plan** (if one exists): the deck's recommendation, numbers, targets and storyline must match the agreed game plan, including the rows of its change log. Unlogged drift is Major (Critical if the recommendation changed); list each difference.
 - **Sources**: open every link with WebFetch; flag dead links, homepages, links that don't support the claim, weak sources behind key numbers.
 - **Copied text**: every passage from `overlap_check.py`, with a paraphrase to replace it.
 - **AI-sounding text (always)**: read `references/ai-tells.md` and check every slide, the notes and Q&A. Flag each phrase with a plainer rewrite, and give a Low / Medium / High AI-risk verdict for the deck.
 - **Density is judged by eye**: the script's word count is a hint for where to look. A slide over the guide that reads cleanly is not an issue; a slide that looks crowded is a Design issue (Minor; Major when the message is lost), whatever its count.
+
+## 2a. Design critique (scored, ranked P0-P3)
+
+Scores the Design and readability category from six checks instead of one overall impression, and ranks every design finding by how much it hurts. Idea taken from Impeccable's `critique` (web design), rewritten for case decks. Judge the rendered slides; the house style (case-study-ppt) is the standard, or the professor's template when the deck follows one.
+
+| Check | Question | 10 looks like |
+|---|---|---|
+| Hierarchy | Does the eye land on the title, then the one key number or visual, then the support? | One clear focal point per slide; action title, then the big number or chart |
+| Focus | One message per slide, and is the so-what visible? | Nothing on the slide that the title doesn't need; conclusion bar on Analysis slides |
+| Consistency | Same palette roles, icon style, element sizes and grid across the deck? | Sibling boxes identical, edges aligned, one icon style, palette roles only |
+| Legibility | Sizes, contrast, line length? | ≥16pt body (14pt appendix), contrast ≥4.5:1 (3:1 large), no shrink-to-fit |
+| Breathing room | Does each slide read at a glance? | Gaps 0.2-0.3 in, 0.15+ in padding, no crowded or half-empty zones |
+| Data clarity | Is the right chart used, and read at once? | Native chart, one highlight, data labels, no gridlines, axis from zero |
+
+- **Score**: each check 0-10; the Design and readability category = their average (rounded to 0.5). Write the six scores in the report.
+- **Findings**: every slop-check P0, P1 and P2 finding is confirmed on the render and becomes a fix row, unless the render shows the slide is better as it is (say why in one line). P3 findings go in one combined polish row per type. Add what you see by eye with a P level too:
+  - **P0** unreadable or misleading (text you can't read, a chart that shows the wrong thing)
+  - **P1** clearly against the house style or hurting the message
+  - **P2** looks like AI slop or template work
+  - **P3** polish
+- **Severity in the fix table**: P0 and P1 = Major (Critical when the slide is the executive summary or the recommendation and the message is lost); P2 and P3 = Minor. The Problem cell starts with the level (`[P1] gradient on pillar cards`). The Exact change names the design move from case-study-fixer's playbook (`quieter: flat NEUTRAL fill on the three cards`), so the fixer applies it without guessing.
+- **Order**: design rows are numbered P0 first, then P1, P2, P3; the fixer works them in that order.
+
+**Design-only mode** (the user asks for a design critique, not an audit): run `slop_check.py` and `audit_pptx.py` for sizes, render the named slides (or the whole deck), do 2a only. Output: the six scores, the P0-P3 list with design moves, at most 3 "what's good" bullets. No grade, no content review and no audit file unless asked; write the findings as fix-table rows so the user can say "fix 1-4". End with: "Next: case-study-fixer applies these as design moves. Run it now?"
 
 ## 3. Judge simulation
 
@@ -130,6 +159,7 @@ Big problems must be impossible to miss. Give it in chat, in this order:
 4. **All other issues**, by severity (Major, then Minor), each: `Slide N – problem – why it costs points – recommended fix`. Fixes must be concrete and ready to apply: the replacement title text, which bullets move to which appendix slide, the correct number, the new font size. Never vague ("improve design").
 4b. **Team breakdown** (team decks only, section 3a): the per-member table and the cross-member line.
 5. **Idea verdict**: the strategy rated /10, and the stronger alternative or upgrade if there is one.
+5b. **Design critique** (section 2a): the six check scores and the top 3 design fixes by P level.
 6. **AI-risk and originality**: verdict plus the worst examples (full list in the file).
 7. **Judge questions** from section 3.
 8. **Progress** (re-checks only): previous score → new score per category, issues fixed, issues still open, and any issue that has come back across versions (flag recurring ones in bold, they point to a habit).
@@ -165,7 +195,7 @@ When case-study-fixer started this audit (its pre-audit because no audit file ex
 
 Its job is to catch obvious errors the fixes left or caused, not to grade again.
 - **Numbers**: run `audit_pptx.py` and `overlap_check.py` on the new version; every changed figure is identical on main slides, appendix, notes and Q&A; headline claims still match the model.
-- **Look**: render every changed slide and look at it: overflow, overlaps, one-line titles, text sizes, a slide that became crowded.
+- **Look**: render every changed slide and look at it: overflow, overlaps, one-line titles, text sizes, a slide that became crowded. Run `slop_check.py` again: no new P0 or P1, and every design row's P level is gone or explained.
 - **Feasibility**: the investment still fits the financial baseline; timeline and risks still match the plan.
 - **Fix rows**: tick each row's "Done when" with evidence.
 - **Not done here**: no read of the case PDF, no re-opening of unchanged links, no re-scoring of all six categories, no hunt for new Minor issues.
